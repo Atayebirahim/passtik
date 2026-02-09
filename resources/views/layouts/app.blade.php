@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>@yield('title', 'Passtik - Premium MikroTik SaaS')</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+        .glass-effect {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        .input-focus:focus {
+            box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+            border-color: #6366f1;
+        }
+    </style>
+</head>
+<body class="bg-gray-50">
+    
+    <!-- Mobile overlay -->
+    <div id="mobile-overlay" class="fixed inset-0 bg-black bg-opacity-50 z-30 lg:hidden hidden"></div>
+    
+    <!-- Sidebar -->
+    <aside id="sidebar" class="fixed top-0 left-0 z-40 w-64 h-screen bg-gradient-to-b from-slate-800 to-slate-900 text-white transform -translate-x-full lg:translate-x-0 transition-transform duration-300">
+        <div class="h-full px-6 py-8 flex flex-col">
+            <!-- Logo -->
+            <div class="flex items-center justify-between mb-12">
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 bg-gradient-to-r from-indigo-600 to-purple-600 rounded-xl flex items-center justify-center">
+                        <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path>
+                        </svg>
+                    </div>
+                    <span class="text-2xl font-bold">PASSTIK</span>
+                </div>
+                <button id="close-sidebar" class="lg:hidden text-gray-400 hover:text-white">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                    </svg>
+                </button>
+            </div>
+
+            <!-- Navigation -->
+            <nav class="space-y-2 flex-1">
+                <a href="{{ route('routers.index') }}" class="flex items-center gap-3 p-3 {{ request()->routeIs('routers.*') && !request()->routeIs('routers.profiles') && !request()->routeIs('routers.manage') ? 'bg-indigo-600 text-white' : 'text-gray-300 hover:text-white hover:bg-white/10' }} rounded-xl transition-all">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path>
+                    </svg>
+                    <span>Routers</span>
+                </a>
+                
+                @if(request()->routeIs('routers.manage'))
+                    @php
+                        $currentRouter = request()->route('router');
+                    @endphp
+                    @if($currentRouter && ($currentRouter->user_id == auth()->id() || !$currentRouter->user_id))
+                        <a href="{{ route('routers.manage', $currentRouter) }}" class="flex items-center gap-3 p-3 bg-indigo-600 text-white rounded-xl transition-all">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
+                            </svg>
+                            <span>Dashboard</span>
+                        </a>
+                    @endif
+                @endif
+                
+                @if(request()->routeIs('routers.manage') || request()->routeIs('vouchers.*'))
+                    @php
+                        $currentRouter = request()->route('router');
+                    @endphp
+                    @if($currentRouter && ($currentRouter->user_id == auth()->id() || !$currentRouter->user_id))
+                        <a href="{{ route('vouchers.index') }}?router={{ $currentRouter->id }}" class="flex items-center gap-3 p-3 {{ request()->routeIs('vouchers.*') ? 'bg-indigo-600 text-white' : 'text-gray-300 hover:text-white hover:bg-white/10' }} rounded-xl transition-all">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 5v2m0 4v2m0 4v2M5 5a2 2 0 00-2 2v3a2 2 0 110 4v3a2 2 0 002 2h14a2 2 0 002-2v-3a2 2 0 110-4V7a2 2 0 00-2-2H5z"></path>
+                            </svg>
+                            <span>Vouchers</span>
+                        </a>
+                    @endif
+                @endif
+            </nav>
+        </div>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="lg:ml-64 min-h-screen">
+        <!-- Top Bar -->
+        <header class="bg-white shadow-sm px-4 lg:px-6 py-4">
+            <div class="flex items-center justify-between">
+                <div class="flex items-center gap-4">
+                    <button id="mobile-menu-btn" class="lg:hidden text-gray-600 hover:text-gray-900">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path>
+                        </svg>
+                    </button>
+                    <div>
+                        <h1 class="text-xl lg:text-2xl font-bold text-gray-900">@yield('page-title')</h1>
+                        <p class="text-sm text-gray-600 hidden sm:block">@yield('page-subtitle')</p>
+                    </div>
+                </div>
+                <div class="flex items-center gap-4">
+                    @yield('header-actions')
+                </div>
+            </div>
+        </header>
+
+        <!-- Content -->
+        <div class="p-4 lg:p-6">
+            @yield('content')
+        </div>
+    </main>
+
+    <script>
+        // Mobile menu functionality
+        const mobileMenuBtn = document.getElementById('mobile-menu-btn');
+        const sidebar = document.getElementById('sidebar');
+        const overlay = document.getElementById('mobile-overlay');
+        const closeSidebar = document.getElementById('close-sidebar');
+
+        function openSidebar() {
+            sidebar.classList.remove('-translate-x-full');
+            overlay.classList.remove('hidden');
+        }
+
+        function closeSidebarFn() {
+            sidebar.classList.add('-translate-x-full');
+            overlay.classList.add('hidden');
+        }
+
+        mobileMenuBtn?.addEventListener('click', openSidebar);
+        closeSidebar?.addEventListener('click', closeSidebarFn);
+        overlay?.addEventListener('click', closeSidebarFn);
+
+        // Close sidebar on window resize to desktop
+        window.addEventListener('resize', () => {
+            if (window.innerWidth >= 1024) {
+                closeSidebarFn();
+            }
+        });
+        @if(session('alert_success'))
+            Swal.fire({
+                icon: 'success',
+                title: 'Success!',
+                text: '{{ session('alert_success') }}',
+                timer: 3000,
+                showConfirmButton: false
+            });
+        @endif
+
+        @if(session('alert_error'))
+            Swal.fire({
+                icon: 'error',
+                title: 'Error!',
+                text: '{{ session('alert_error') }}',
+                confirmButtonColor: '#6366f1'
+            });
+        @endif
+    </script>
+</body>
+</html>

@@ -6,6 +6,7 @@ use App\Models\Router;
 use Illuminate\Http\Request;
 use RouterOS\Client;
 use RouterOS\Config;
+use App\Services\WireGuardService;
 use Exception;
 
 class RouterController extends Controller
@@ -27,16 +28,48 @@ class RouterController extends Controller
             'api_password' => 'required|string',
         ]);
 
-        $validated['vpn_ip'] = '10.0.0.' . (Router::count() + 2);
-        $validated['user_id'] = auth()->id(); 
+        try {
+            $wg = new WireGuardService();
+            $routerId = Router::count() + 1;
+            $vpnConfig = $wg->generatePeerConfig($routerId);
+            
+            $validated['vpn_ip'] = $vpnConfig['peer_ip'];
+            $validated['vpn_public_key'] = $vpnConfig['peer_public_key'];
+            $validated['vpn_private_key'] = encrypt($vpnConfig['peer_private_key']);
+            $validated['user_id'] = auth()->id();
+            
+            $router = Router::create($validated);
+            
+            $wg->addPeerToVps($vpnConfig['peer_public_key'], $vpnConfig['peer_ip']);
 
-        Router::create($validated);
-
-        return redirect()->route('routers.index')->with('alert_success', 'Router added to Passtik!');
+            return redirect()->route('routers.show', $router)->with('alert_success', 'Router added! Download setup script below.');
+        } catch (Exception $e) {
+            return back()->withInput()->with('alert_error', 'Failed to configure VPN: ' . $e->getMessage());
+        }
     }
 
     public function show(Router $router) {
-        return view('routers.show', compact('router'));
+        if (!$router->vpn_private_key) {
+            return redirect()->route('routers.index')->with('alert_error', 'Router not configured for VPN. Please delete and re-add.');
+        }
+        
+        try {
+            $wg = new WireGuardService();
+            $vpsPublicIp = config('app.vps_public_ip', request()->getHost());
+            
+            $config = [
+                'peer_ip' => $router->vpn_ip,
+                'peer_private_key' => decrypt($router->vpn_private_key),
+                'vps_public_key' => $wg->getVpsPublicKey(),
+                'vps_ip' => '10.0.0.1',
+            ];
+            
+            $script = $wg->generateMikrotikScript($config, $vpsPublicIp, $router->api_password);
+            
+            return view('routers.show', compact('router', 'script'));
+        } catch (Exception $e) {
+            return redirect()->route('routers.index')->with('alert_error', 'Failed to generate script: ' . $e->getMessage());
+        }
     }
 
     public function edit(Router $router) {
@@ -57,6 +90,13 @@ class RouterController extends Controller
     }
 
     public function destroy(Router $router) {
+        try {
+            $wg = new WireGuardService();
+            $wg->removePeerFromVps($router->vpn_public_key);
+        } catch (Exception $e) {
+            \Log::error('Failed to remove VPN peer: ' . $e->getMessage());
+        }
+        
         $router->delete();
         return redirect()->route('routers.index')->with('alert_success', 'Router deleted successfully!');
     }

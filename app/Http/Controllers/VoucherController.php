@@ -71,6 +71,16 @@ class VoucherController extends Controller
             'expires_in_days' => 'required|integer|min:1|max:365',
         ]);
 
+        // Check voucher limit
+        $user = auth()->user();
+        $currentCount = Voucher::whereHas('router', function($q) use ($user) {
+            $q->where('user_id', $user->id);
+        })->count();
+
+        if ($currentCount + $validated['quantity'] > $user->voucher_limit) {
+            return back()->with('alert_error', "Voucher limit exceeded! Your plan allows {$user->voucher_limit} vouchers. You have {$currentCount} vouchers. Upgrade your plan to create more.");
+        }
+
         $router = Router::find($validated['router_id']);
         $createdVouchers = [];
 

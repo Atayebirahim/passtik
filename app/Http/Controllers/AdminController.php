@@ -13,6 +13,22 @@ class AdminController extends Controller
 {
     public function dashboard()
     {
+        // Optimize revenue calculation with single query
+        $revenueData = SubscriptionRequest::where('status', 'approved')
+            ->selectRaw('
+                SUM(CASE 
+                    WHEN requested_plan = "pro" THEN 29 
+                    WHEN requested_plan = "enterprise" THEN 99 
+                    ELSE 0 
+                END) as total_revenue,
+                SUM(CASE 
+                    WHEN requested_plan = "pro" AND MONTH(approved_at) = ? AND YEAR(approved_at) = ? THEN 29 
+                    WHEN requested_plan = "enterprise" AND MONTH(approved_at) = ? AND YEAR(approved_at) = ? THEN 99 
+                    ELSE 0 
+                END) as month_revenue
+            ', [now()->month, now()->year, now()->month, now()->year])
+            ->first();
+
         $stats = [
             'total_users' => User::count(),
             'new_users_today' => User::whereDate('created_at', today())->count(),
@@ -26,17 +42,8 @@ class AdminController extends Controller
             'expired_vouchers' => Voucher::where('status', 'expired')->count(),
             'pending_subscriptions' => SubscriptionRequest::where('status', 'pending')->count(),
             'approved_subscriptions' => SubscriptionRequest::where('status', 'approved')->count(),
-            'revenue_this_month' => SubscriptionRequest::where('status', 'approved')
-                ->whereMonth('approved_at', now()->month)
-                ->sum(DB::raw("CASE 
-                    WHEN requested_plan = 'pro' THEN 29 
-                    WHEN requested_plan = 'enterprise' THEN 99 
-                    ELSE 0 END")),
-            'revenue_total' => SubscriptionRequest::where('status', 'approved')
-                ->sum(DB::raw("CASE 
-                    WHEN requested_plan = 'pro' THEN 29 
-                    WHEN requested_plan = 'enterprise' THEN 99 
-                    ELSE 0 END")),
+            'revenue_this_month' => $revenueData->month_revenue ?? 0,
+            'revenue_total' => $revenueData->total_revenue ?? 0,
         ];
 
         $user_growth = User::selectRaw('DATE(created_at) as date, COUNT(*) as count')
@@ -70,20 +77,35 @@ class AdminController extends Controller
 
     public function users()
     {
+        $statsData = User::selectRaw('
+            COUNT(*) as total_users,
+            SUM(CASE WHEN email_verified_at IS NOT NULL THEN 1 ELSE 0 END) as active_users,
+            SUM(CASE WHEN email_verified_at IS NULL THEN 1 ELSE 0 END) as unverified_users,
+            SUM(CASE WHEN is_admin = 1 THEN 1 ELSE 0 END) as admin_users,
+            SUM(CASE WHEN plan = "free" THEN 1 ELSE 0 END) as free_plan,
+            SUM(CASE WHEN plan = "pro" THEN 1 ELSE 0 END) as pro_plan,
+            SUM(CASE WHEN plan = "enterprise" THEN 1 ELSE 0 END) as enterprise_plan,
+            SUM(CASE WHEN DATE(created_at) = ? THEN 1 ELSE 0 END) as users_today,
+            SUM(CASE WHEN created_at >= ? THEN 1 ELSE 0 END) as users_this_week,
+            SUM(CASE WHEN created_at >= ? THEN 1 ELSE 0 END) as users_this_month
+        ', [today(), now()->subDays(7), now()->subDays(30)])->first();
+        
         $stats = [
-            'total_users' => User::count(),
-            'active_users' => User::whereNotNull('email_verified_at')->count(),
-            'unverified_users' => User::whereNull('email_verified_at')->count(),
-            'admin_users' => User::where('is_admin', true)->count(),
-            'free_plan' => User::where('plan', 'free')->count(),
-            'pro_plan' => User::where('plan', 'pro')->count(),
-            'enterprise_plan' => User::where('plan', 'enterprise')->count(),
-            'users_today' => User::whereDate('created_at', today())->count(),
-            'users_this_week' => User::where('created_at', '>=', now()->subDays(7))->count(),
-            'users_this_month' => User::where('created_at', '>=', now()->subDays(30))->count(),
+            'total_users' => $statsData->total_users ?? 0,
+            'active_users' => $statsData->active_users ?? 0,
+            'unverified_users' => $statsData->unverified_users ?? 0,
+            'admin_users' => $statsData->admin_users ?? 0,
+            'free_plan' => $statsData->free_plan ?? 0,
+            'pro_plan' => $statsData->pro_plan ?? 0,
+            'enterprise_plan' => $statsData->enterprise_plan ?? 0,
+            'users_today' => $statsData->users_today ?? 0,
+            'users_this_week' => $statsData->users_this_week ?? 0,
+            'users_this_month' => $statsData->users_this_month ?? 0,
         ];
         
-        $users = User::withCount(['routers', 'vouchers'])
+        $users = User::select('users.*')
+            ->selectRaw('(SELECT COUNT(*) FROM routers WHERE routers.user_id = users.id) as routers_count')
+            ->selectRaw('(SELECT COUNT(*) FROM vouchers WHERE vouchers.user_id = users.id) as vouchers_count')
             ->latest()
             ->paginate(20);
         
@@ -92,6 +114,14 @@ class AdminController extends Controller
 
     public function toggleAdmin(User $user)
     {
+        if ($user->id === auth()->id()) {
+            return back()->with('alert_error', 'Cannot modify your own admin status');
+        }
+        
+        if ($user->is_admin && User::where('is_admin', true)->count() <= 1) {
+            return back()->with('alert_error', 'Cannot remove the last admin user');
+        }
+        
         $user->update(['is_admin' => !$user->is_admin]);
         return back()->with('alert_success', 'Admin status updated successfully');
     }
@@ -137,16 +167,25 @@ class AdminController extends Controller
 
     public function updateUser(Request $request, User $user)
     {
-        $validated = $request->validate([
-            'name' => 'required|string|max:255',
-            'email' => 'required|email|unique:users,email,' . $user->id,
-            'plan' => 'required|in:free,pro,enterprise',
-            'voucher_limit' => 'required|integer|min:0',
-            'is_admin' => 'boolean',
-        ]);
+        try {
+            $validated = $request->validate([
+                'name' => 'required|string|max:255',
+                'email' => 'required|email|max:255|unique:users,email,' . $user->id,
+                'plan' => 'required|in:free,pro,enterprise',
+                'voucher_limit' => 'required|integer|min:0|max:100000',
+                'is_admin' => 'sometimes|boolean',
+            ]);
 
-        $user->update($validated);
-        return redirect()->route('admin.users')->with('alert_success', 'User updated successfully');
+            if (isset($validated['is_admin']) && $user->id === auth()->id()) {
+                return back()->with('alert_error', 'Cannot modify your own admin status');
+            }
+
+            $user->update($validated);
+            return redirect()->route('admin.users')->with('alert_success', 'User updated successfully');
+        } catch (\Exception $e) {
+            \Log::error('Failed to update user', ['user_id' => $user->id, 'error' => $e->getMessage()]);
+            return back()->withInput()->with('alert_error', 'Failed to update user. Please try again.');
+        }
     }
 
     public function routers()

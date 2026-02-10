@@ -24,8 +24,8 @@ class RouterController extends Controller
         $validated = $request->validate([
             'name' => 'required|string|max:255',
             'local_ip' => 'required|ip',
-            'api_user' => 'required|string',
-            'api_password' => 'required|string',
+            'api_user' => 'required|string|max:100|regex:/^[a-zA-Z0-9_-]+$/',
+            'api_password' => 'required|string|min:6|max:255',
         ]);
 
         try {
@@ -43,11 +43,14 @@ class RouterController extends Controller
 
             return redirect()->route('routers.show', $router)->with('alert_success', 'Router added! Download setup script below.');
         } catch (Exception $e) {
-            return back()->withInput()->with('alert_error', 'Failed to configure VPN: ' . $e->getMessage());
+            \Log::error('VPN configuration failed', ['error' => $e->getMessage()]);
+            return back()->withInput()->with('alert_error', 'Failed to configure VPN. Please try again.');
         }
     }
 
     public function show(Router $router) {
+        $this->authorize('view', $router);
+        
         if (!$router->vpn_private_key) {
             return redirect()->route('routers.index')->with('alert_error', 'Router not configured for VPN. Please delete and re-add.');
         }
@@ -72,20 +75,23 @@ class RouterController extends Controller
             
             return view('routers.show', compact('router', 'script', 'vpnStatus'));
         } catch (Exception $e) {
-            return redirect()->route('routers.index')->with('alert_error', 'Failed to generate script: ' . $e->getMessage());
+            \Log::error('Script generation failed', ['router_id' => $router->id, 'error' => $e->getMessage()]);
+            return redirect()->route('routers.index')->with('alert_error', 'Failed to generate script. Please try again.');
         }
     }
 
     public function edit(Router $router) {
+        $this->authorize('update', $router);
         return view('routers.edit', compact('router'));
     }
 
     public function update(Request $request, Router $router) {
+        $this->authorize('update', $router);
         $validated = $request->validate([
             'name' => 'required|string|max:255',
             'local_ip' => 'required|ip',
-            'api_user' => 'required|string',
-            'api_password' => 'required|string',
+            'api_user' => 'required|string|max:100|regex:/^[a-zA-Z0-9_-]+$/',
+            'api_password' => 'required|string|min:6|max:255',
         ]);
 
         $router->update($validated);
@@ -94,6 +100,7 @@ class RouterController extends Controller
     }
 
     public function destroy(Router $router) {
+        $this->authorize('delete', $router);
         try {
             $wg = new WireGuardService();
             $wg->removePeerFromVps($router->vpn_public_key);
@@ -109,6 +116,7 @@ class RouterController extends Controller
     }
 
     public function checkStatus(Router $router) {
+        $this->authorize('view', $router);
         $config = new Config([
             'host' => $router->local_ip,
             'user' => $router->api_user,
@@ -119,15 +127,17 @@ class RouterController extends Controller
         try {
             $client = new Client($config);
             $responses = $client->query('/system/identity/print')->read();
-            $routerName = $responses[0]['name'] ?? 'Unknown';
+            $routerName = htmlspecialchars($responses[0]['name'] ?? 'Unknown', ENT_QUOTES, 'UTF-8');
             
             return back()->with('alert_success', "Connected to: {$routerName}");
         } catch (Exception $e) {
-            return back()->with('alert_error', "Connection failed: " . $e->getMessage());
+            \Log::error('Router connection failed', ['router_id' => $router->id, 'error' => $e->getMessage()]);
+            return back()->with('alert_error', 'Connection failed. Please check your router settings.');
         }
     }
 
     public function manage(Router $router) {
+        $this->authorize('view', $router);
         $config = new Config([
             'host' => $router->local_ip,
             'user' => $router->api_user,
@@ -141,22 +151,31 @@ class RouterController extends Controller
             $resourceData = $client->query('/system/resource/print')->read();
             $identityData = $client->query('/system/identity/print')->read();
 
+            $info = null;
+            if (!empty($resourceData)) {
+                $info = array_map(function($value) {
+                    return is_string($value) ? htmlspecialchars($value, ENT_QUOTES, 'UTF-8') : $value;
+                }, $resourceData[0]);
+            }
+
             return view('routers.manage', [
                 'router' => $router,
-                'info' => !empty($resourceData) ? $resourceData[0] : null,
-                'name' => !empty($identityData) ? $identityData[0]['name'] : $router->name
+                'info' => $info,
+                'name' => !empty($identityData) ? htmlspecialchars($identityData[0]['name'], ENT_QUOTES, 'UTF-8') : $router->name
             ]);
         } catch (Exception $e) {
+            \Log::error('Router management connection failed', ['router_id' => $router->id, 'error' => $e->getMessage()]);
             return view('routers.manage', [
                 'router' => $router,
                 'info' => null,
                 'name' => $router->name,
-                'connectionError' => $e->getMessage()
+                'connectionError' => 'Unable to connect to router. Please check your settings.'
             ]);
         }
     }
 
     public function clearVouchers(Router $router) {
+        $this->authorize('delete', $router);
         $config = new Config([
             'host' => $router->local_ip,
             'user' => $router->api_user,
@@ -186,12 +205,14 @@ class RouterController extends Controller
             return redirect()->route('routers.index')
                 ->with('alert_success', "Cleared {$deletedCount} vouchers from device and {$dbDeleted} from database");
         } catch (Exception $e) {
+            \Log::error('Voucher clearing failed', ['router_id' => $router->id, 'error' => $e->getMessage()]);
             return redirect()->route('routers.index')
-                ->with('alert_error', 'Failed to clear vouchers: ' . $e->getMessage());
+                ->with('alert_error', 'Failed to clear vouchers. Please try again.');
         }
     }
 
     public function networkTraffic(Router $router) {
+        $this->authorize('view', $router);
         $cacheKey = 'traffic_' . $router->id . '_' . request()->ip();
         if (cache()->has($cacheKey)) {
             return response()->json(['success' => false, 'error' => 'Rate limited']);
@@ -213,6 +234,7 @@ class RouterController extends Controller
             $trafficData = [];
             foreach ($interfaces as $interface) {
                 if (isset($interface['name']) && !str_contains($interface['name'], 'lo')) {
+                    $interfaceName = htmlspecialchars($interface['name'], ENT_QUOTES, 'UTF-8');
                     $stats = $client->query([
                         '/interface/monitor-traffic',
                         '=interface=' . $interface['name'],
@@ -221,7 +243,7 @@ class RouterController extends Controller
                     
                     if (!empty($stats)) {
                         $trafficData[] = [
-                            'interface' => $interface['name'],
+                            'interface' => $interfaceName,
                             'rx_bits_per_second' => $stats[0]['rx-bits-per-second'] ?? 0,
                             'tx_bits_per_second' => $stats[0]['tx-bits-per-second'] ?? 0,
                         ];

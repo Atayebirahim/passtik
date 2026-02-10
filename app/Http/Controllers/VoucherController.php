@@ -18,20 +18,20 @@ class VoucherController extends Controller
         $search = request('search');
         $status = request('status');
         
-        if (!$routerId) {
+        if (!$routerId || !is_numeric($routerId)) {
             return redirect()->route('routers.index')
-                ->with('alert_error', 'Please select a router to view vouchers.');
+                ->with('alert_error', __('messages.please_select_router'));
         }
         
         $userRouterIds = Router::where('user_id', auth()->id())->pluck('id');
-        $selectedRouter = Router::whereIn('id', $userRouterIds)->find($routerId);
+        $selectedRouter = Router::whereIn('id', $userRouterIds)->find((int)$routerId);
         
         if (!$selectedRouter) {
             return redirect()->route('routers.index')
-                ->with('alert_error', 'Router not found or access denied.');
+                ->with('alert_error', __('messages.access_denied'));
         }
         
-        $query = Voucher::with(['router', 'redemptions'])->where('router_id', $routerId);
+        $query = Voucher::with(['router', 'redemptions'])->where('router_id', (int)$routerId);
         
         if ($search) {
             $query->where('code', 'like', '%' . $search . '%');
@@ -78,10 +78,16 @@ class VoucherController extends Controller
         })->count();
 
         if ($currentCount + $validated['quantity'] > $user->voucher_limit) {
-            return back()->with('alert_error', "Voucher limit exceeded! Your plan allows {$user->voucher_limit} vouchers. You have {$currentCount} vouchers. Upgrade your plan to create more.");
+            return back()->with('alert_error', __('messages.voucher_limit_exceeded') . " Your plan allows {$user->voucher_limit} vouchers. You have {$currentCount} vouchers. " . __('messages.upgrade_plan_message'));
         }
 
         $router = Router::find($validated['router_id']);
+        
+        // Verify router ownership
+        if (!$router || $router->user_id !== auth()->id()) {
+            return back()->with('alert_error', __('messages.access_denied'));
+        }
+        
         $createdVouchers = [];
 
         DB::beginTransaction();
@@ -108,10 +114,11 @@ class VoucherController extends Controller
 
             DB::commit();
             return redirect()->route('vouchers.index', ['router' => $validated['router_id']])
-                ->with('alert_success', count($createdVouchers) . ' vouchers created successfully!');
+                ->with('alert_success', __('messages.vouchers_created_count', ['count' => count($createdVouchers)]));
         } catch (\Exception $e) {
             DB::rollback();
-            return back()->with('alert_error', 'Failed: ' . $e->getMessage());
+            \Log::error('Voucher creation failed', ['router_id' => $validated['router_id'], 'error' => $e->getMessage()]);
+            return back()->withInput()->with('alert_error', __('messages.error'));
         }
     }
 
@@ -122,15 +129,15 @@ class VoucherController extends Controller
         if (RateLimiter::tooManyAttempts($key, 5)) {
             return response()->json([
                 'success' => false,
-                'error' => 'Too many attempts. Please try again later.'
+                'error' => __('messages.too_many_attempts')
             ], 429);
         }
 
         RateLimiter::hit($key, 300); // 5 minutes
 
         $validated = $request->validate([
-            'code' => 'required|string',
-            'mac' => 'nullable|string',
+            'code' => 'required|string|max:50',
+            'mac' => 'nullable|string|max:17|regex:/^([0-9A-Fa-f]{2}[:-]){5}([0-9A-Fa-f]{2})$/',
         ]);
 
         DB::beginTransaction();
@@ -141,11 +148,11 @@ class VoucherController extends Controller
 
             if (!$voucher) {
                 $this->logRedemption(null, $request, 'failed', 'Voucher not found');
-                return response()->json(['success' => false, 'error' => 'Invalid voucher code'], 404);
+                return response()->json(['success' => false, 'error' => __('messages.invalid_voucher')], 404);
             }
 
             if (!$voucher->isRedeemable()) {
-                $error = $voucher->isExpired() ? 'Voucher has expired' : 'Voucher already used';
+                $error = $voucher->isExpired() ? __('messages.voucher_expired') : __('messages.voucher_already_used');
                 $this->logRedemption($voucher->id, $request, 'failed', $error);
                 return response()->json(['success' => false, 'error' => $error], 400);
             }
@@ -153,7 +160,7 @@ class VoucherController extends Controller
             // MAC address binding check
             if ($voucher->device_mac && $voucher->device_mac !== $validated['mac']) {
                 $this->logRedemption($voucher->id, $request, 'failed', 'Device mismatch');
-                return response()->json(['success' => false, 'error' => 'This voucher is bound to another device'], 403);
+                return response()->json(['success' => false, 'error' => __('messages.device_mismatch')], 403);
             }
 
             // Create user on MikroTik
@@ -174,7 +181,7 @@ class VoucherController extends Controller
 
             return response()->json([
                 'success' => true,
-                'message' => 'Voucher activated successfully!',
+                'message' => __('messages.voucher_redeemed'),
                 'data' => [
                     'username' => $voucher->code,
                     'password' => $voucher->password,
@@ -185,8 +192,8 @@ class VoucherController extends Controller
 
         } catch (\Exception $e) {
             DB::rollback();
-            $this->logRedemption($voucher->id ?? null, $request, 'failed', $e->getMessage());
-            return response()->json(['success' => false, 'error' => 'Redemption failed: ' . $e->getMessage()], 500);
+            \Log::error('Voucher redemption failed', ['voucher_id' => $voucher->id ?? null, 'error' => $e->getMessage()]);
+            return response()->json(['success' => false, 'error' => __('messages.redemption_failed')], 500);
         }
     }
 
@@ -300,20 +307,29 @@ class VoucherController extends Controller
 
     private function removeMikrotikUser($voucher)
     {
-        $router = $voucher->router;
-        $config = new \RouterOS\Config([
-            'host' => $router->local_ip,
-            'user' => $router->api_user,
-            'pass' => $router->api_password,
-            'port' => 8728,
-            'timeout' => 3,
-        ]);
+        try {
+            $router = $voucher->router;
+            $config = new \RouterOS\Config([
+                'host' => $router->local_ip,
+                'user' => $router->api_user,
+                'pass' => $router->api_password,
+                'port' => 8728,
+                'timeout' => 3,
+            ]);
 
-        $client = new \RouterOS\Client($config);
-        $users = $client->query('/ip/hotspot/user/print', ['?name' => $voucher->code])->read();
-        
-        if (!empty($users)) {
-            $client->query('/ip/hotspot/user/remove', ['.id' => $users[0]['.id']]);
+            $client = new \RouterOS\Client($config);
+            $users = $client->query('/ip/hotspot/user/print', ['?name' => $voucher->code])->read();
+            
+            if (!empty($users)) {
+                $client->query('/ip/hotspot/user/remove', ['.id' => $users[0]['.id']]);
+            }
+        } catch (\Exception $e) {
+            \Log::error('Failed to remove MikroTik user', [
+                'voucher_id' => $voucher->id,
+                'router_id' => $voucher->router_id,
+                'error' => $e->getMessage()
+            ]);
+            throw $e;
         }
     }
 

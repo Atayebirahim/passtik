@@ -57,7 +57,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
 });
 
 Route::get('/redeem', [VoucherController::class, 'redeemPage'])->name('vouchers.redeem.page');
-Route::post('/api/vouchers/redeem', [VoucherController::class, 'redeem'])->middleware('throttle:10,1')->name('vouchers.redeem')->withoutMiddleware(\Illuminate\Foundation\Http\Middleware\VerifyCsrfToken::class);
+Route::post('/api/vouchers/redeem', [VoucherController::class, 'redeem'])->middleware('throttle:10,1')->name('vouchers.redeem');
 
 Route::get('/terms', function () { return view('legal.terms'); })->name('terms');
 Route::get('/privacy', function () { return view('legal.privacy'); })->name('privacy');
@@ -65,7 +65,7 @@ Route::get('/privacy', function () { return view('legal.privacy'); })->name('pri
 // Admin routes
 Route::middleware(['auth', 'verified', \App\Http\Middleware\AdminMiddleware::class])->prefix('admin')->group(function () {
     Route::get('/dashboard', [\App\Http\Controllers\AdminController::class, 'dashboard'])->name('admin.dashboard');
-    Route::get('/users', [\App\Http\Controllers\AdminController::class, 'users'])->name('admin.users');
+    Route::get('/users', [\App\Http\Controllers\AdminController::class, 'users'])->middleware('throttle:60,1')->name('admin.users');
     Route::get('/users/{user}', [\App\Http\Controllers\AdminController::class, 'showUser'])->name('admin.users.show');
     Route::get('/users/{user}/edit', [\App\Http\Controllers\AdminController::class, 'editUser'])->name('admin.users.edit');
     Route::put('/users/{user}', [\App\Http\Controllers\AdminController::class, 'updateUser'])->name('admin.users.update');

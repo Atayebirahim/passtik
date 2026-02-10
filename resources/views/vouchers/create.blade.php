@@ -1,7 +1,7 @@
 @extends('layouts.app')
 
-@section('title', 'Create Vouchers - Passtik')
-@section('page-title', 'Create Vouchers')
+@section('title', __('messages.create_vouchers') . ' - ' . __('messages.app_name'))
+@section('page-title', __('messages.create_vouchers'))
 @section('page-subtitle', 'Generate new hotspot vouchers')
 
 @section('content')
@@ -13,14 +13,14 @@
             @if($selectedRouter)
                 <input type="hidden" name="router_id" value="{{ $selectedRouter->id }}">
                 <div class="p-4 bg-blue-50 border border-blue-200 rounded-xl">
-                    <p class="text-sm text-blue-700">Router: <strong>{{ $selectedRouter->name }}</strong></p>
+                    <p class="text-sm text-blue-700">{{ __('messages.router_name') }}: <strong>{{ $selectedRouter->name }}</strong></p>
                 </div>
             @else
                 <div>
-                    <label class="block text-sm font-semibold text-gray-700 mb-2">Select Router</label>
+                    <label class="block text-sm font-semibold text-gray-700 mb-2">{{ __('messages.select_router') }}</label>
                     <select name="router_id" id="router-select" required
                             class="w-full px-4 py-3 bg-gray-50 border-0 rounded-xl input-focus transition-all duration-200">
-                        <option value="">Choose a router...</option>
+                        <option value="">{{ __('messages.select') }}...</option>
                         @foreach($routers as $router)
                             <option value="{{ $router->id }}">{{ $router->name }} ({{ $router->local_ip }})</option>
                         @endforeach
@@ -30,12 +30,12 @@
 
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                    <label class="block text-sm font-semibold text-gray-700 mb-2">Number of Vouchers</label>
+                    <label class="block text-sm font-semibold text-gray-700 mb-2">{{ __('messages.quantity') }}</label>
                     <input type="number" name="quantity" value="1" min="1" max="100" required
                            class="w-full px-4 py-3 bg-gray-50 border-0 rounded-xl input-focus transition-all duration-200">
                 </div>
                 <div>
-                    <label class="block text-sm font-semibold text-gray-700 mb-2">Code Length</label>
+                    <label class="block text-sm font-semibold text-gray-700 mb-2">{{ __('messages.code_length') }}</label>
                     <select name="code_length" required
                             class="w-full px-4 py-3 bg-gray-50 border-0 rounded-xl input-focus transition-all duration-200">
                         <option value="4">4 characters</option>
@@ -49,41 +49,41 @@
 
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                    <label class="block text-sm font-semibold text-gray-700 mb-2">Voucher Type</label>
+                    <label class="block text-sm font-semibold text-gray-700 mb-2">{{ __('messages.voucher_type') }}</label>
                     <select name="voucher_type" required
                             class="w-full px-4 py-3 bg-gray-50 border-0 rounded-xl input-focus transition-all duration-200">
-                        <option value="numbers">Numbers Only (123456)</option>
-                        <option value="mixed">Mixed Letters & Numbers (A1B2C3)</option>
+                        <option value="numbers">{{ __('messages.numbers_only') }}</option>
+                        <option value="mixed">{{ __('messages.mixed') }}</option>
                     </select>
                 </div>
                 <div>
-                    <label class="block text-sm font-semibold text-gray-700 mb-2">Authentication Type</label>
+                    <label class="block text-sm font-semibold text-gray-700 mb-2">{{ __('messages.auth_type') }}</label>
                     <select name="auth_type" required
                             class="w-full px-4 py-3 bg-gray-50 border-0 rounded-xl input-focus transition-all duration-200">
-                        <option value="same">Username = Password</option>
-                        <option value="different">Different Username & Password</option>
+                        <option value="same">{{ __('messages.same_as_code') }}</option>
+                        <option value="different">{{ __('messages.different') }}</option>
                     </select>
                 </div>
             </div>
 
             <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <div>
-                    <label class="block text-sm font-semibold text-gray-700 mb-2">Duration (minutes)</label>
+                    <label class="block text-sm font-semibold text-gray-700 mb-2">{{ __('messages.duration') }} ({{ __('messages.minutes') }})</label>
                     <select name="duration" required
                             class="w-full px-4 py-3 bg-gray-50 border-0 rounded-xl input-focus transition-all duration-200">
-                        <option value="30">30 minutes</option>
-                        <option value="60" selected>1 hour</option>
-                        <option value="120">2 hours</option>
-                        <option value="180">3 hours</option>
-                        <option value="360">6 hours</option>
-                        <option value="720">12 hours</option>
-                        <option value="1440">1 day</option>
-                        <option value="4320">3 days</option>
-                        <option value="10080">7 days</option>
+                        <option value="30">30 {{ __('messages.minutes') }}</option>
+                        <option value="60" selected>1 {{ __('messages.hour') }}</option>
+                        <option value="120">2 {{ __('messages.hours') }}</option>
+                        <option value="180">3 {{ __('messages.hours') }}</option>
+                        <option value="360">6 {{ __('messages.hours') }}</option>
+                        <option value="720">12 {{ __('messages.hours') }}</option>
+                        <option value="1440">1 {{ __('messages.day') }}</option>
+                        <option value="4320">3 {{ __('messages.days') }}</option>
+                        <option value="10080">7 {{ __('messages.days') }}</option>
                     </select>
                 </div>
                 <div>
-                    <label class="block text-sm font-semibold text-gray-700 mb-2">Bandwidth</label>
+                    <label class="block text-sm font-semibold text-gray-700 mb-2">{{ __('messages.bandwidth') }}</label>
                     <select name="bandwidth" required
                             class="w-full px-4 py-3 bg-gray-50 border-0 rounded-xl input-focus transition-all duration-200">
                         <option value="512k/512k">512 Kbps</option>
@@ -95,16 +95,16 @@
                     </select>
                 </div>
                 <div>
-                    <label class="block text-sm font-semibold text-gray-700 mb-2">Expires In (days)</label>
+                    <label class="block text-sm font-semibold text-gray-700 mb-2">{{ __('messages.expires_in_days') }}</label>
                     <select name="expires_in_days" required
                             class="w-full px-4 py-3 bg-gray-50 border-0 rounded-xl input-focus transition-all duration-200">
-                        <option value="7">7 days</option>
-                        <option value="15">15 days</option>
-                        <option value="30" selected>30 days</option>
-                        <option value="60">60 days</option>
-                        <option value="90">90 days</option>
-                        <option value="180">180 days</option>
-                        <option value="365">1 year</option>
+                        <option value="7">7 {{ __('messages.days') }}</option>
+                        <option value="15">15 {{ __('messages.days') }}</option>
+                        <option value="30" selected>30 {{ __('messages.days') }}</option>
+                        <option value="60">60 {{ __('messages.days') }}</option>
+                        <option value="90">90 {{ __('messages.days') }}</option>
+                        <option value="180">180 {{ __('messages.days') }}</option>
+                        <option value="365">1 {{ __('messages.year') }}</option>
                     </select>
                 </div>
             </div>
@@ -112,11 +112,11 @@
             <div class="flex gap-4">
                 <button type="submit" 
                         class="flex-1 bg-gradient-to-r from-indigo-600 to-purple-600 text-white py-3 px-6 rounded-xl font-semibold shadow-lg hover:shadow-xl transform hover:scale-[1.02] transition-all duration-200">
-                    Create Vouchers
+                    {{ __('messages.create_vouchers') }}
                 </button>
                 <a href="{{ route('vouchers.index') }}{{ $selectedRouter ? '?router=' . $selectedRouter->id : '' }}" 
                    class="px-6 py-3 bg-gray-100 text-gray-700 rounded-xl font-semibold hover:bg-gray-200 transition-colors">
-                    Cancel
+                    {{ __('messages.cancel') }}
                 </a>
             </div>
         </form>

@@ -32,7 +32,7 @@ class SubscriptionController extends Controller
             'status' => 'pending',
         ]);
 
-        return back()->with('alert_success', 'Upgrade request submitted! We will contact you at ' . $validated['phone'] . ' within 24 hours.');
+        return back()->with('alert_success', 'Upgrade request submitted! We will contact you at ' . htmlspecialchars($validated['phone'], ENT_QUOTES, 'UTF-8') . ' within 24 hours.');
     }
 
     public function showUpgradePage()
@@ -55,6 +55,11 @@ class SubscriptionController extends Controller
     public function approve($id)
     {
         $request = SubscriptionRequest::findOrFail($id);
+        
+        if ($request->status !== 'pending') {
+            return back()->with('alert_error', 'This request has already been processed.');
+        }
+        
         $user = $request->user;
 
         $limits = [
@@ -79,6 +84,11 @@ class SubscriptionController extends Controller
     public function reject($id)
     {
         $request = SubscriptionRequest::findOrFail($id);
+        
+        if ($request->status !== 'pending') {
+            return back()->with('alert_error', 'This request has already been processed.');
+        }
+        
         $request->update(['status' => 'rejected']);
 
         return back()->with('alert_success', 'Request rejected');

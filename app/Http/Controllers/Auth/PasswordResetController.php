@@ -34,9 +34,9 @@ class PasswordResetController extends Controller
     public function reset(Request $request)
     {
         $request->validate([
-            'token' => 'required',
-            'email' => 'required|email',
-            'password' => 'required|min:8|confirmed',
+            'token' => 'required|string|max:255',
+            'email' => 'required|email|max:255',
+            'password' => 'required|string|min:8|max:255|confirmed',
         ]);
 
         $status = Password::reset(
@@ -46,6 +46,8 @@ class PasswordResetController extends Controller
                     'password' => Hash::make($password)
                 ])->setRememberToken(Str::random(60));
                 $user->save();
+                
+                \Log::info('Password reset completed', ['user_id' => $user->id, 'ip' => request()->ip()]);
             }
         );
 

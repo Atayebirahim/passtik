@@ -31,17 +31,18 @@ class WireGuardService
                 throw new Exception('WireGuard is not installed. Run: sudo apt install wireguard');
             }
             
-            $result = Process::run('wg genkey');
+            $result = Process::run(['wg', 'genkey']);
             if (!$result->successful()) {
-                throw new Exception('Failed to generate WireGuard key: ' . $result->errorOutput());
+                throw new Exception('Failed to generate WireGuard key');
             }
             
             $this->vpsPrivateKey = trim($result->output());
             file_put_contents("$keyPath/privatekey", $this->vpsPrivateKey);
             chmod("$keyPath/privatekey", 0600);
             
-            $result = Process::run("echo '{$this->vpsPrivateKey}' | wg pubkey");
+            $result = Process::run(['sh', '-c', 'echo "' . addslashes($this->vpsPrivateKey) . '" | wg pubkey']);
             if (!$result->successful()) {
+                \Log::error('Failed to generate VPS public key', ['error' => $result->errorOutput()]);
                 throw new Exception('Failed to generate public key');
             }
             
@@ -55,7 +56,7 @@ class WireGuardService
     
     private function isWireGuardInstalled()
     {
-        $result = Process::run('which wg');
+        $result = Process::run(['which', 'wg']);
         return $result->successful();
     }
     
@@ -94,13 +95,13 @@ class WireGuardService
         
         $peerIp = $this->getNextAvailableIp();
         
-        $result = Process::run('wg genkey');
+        $result = Process::run(['wg', 'genkey']);
         if (!$result->successful()) {
             throw new Exception('Failed to generate peer private key');
         }
         $peerPrivateKey = trim($result->output());
         
-        $result = Process::run("echo '{$peerPrivateKey}' | wg pubkey");
+        $result = Process::run(['sh', '-c', 'echo "' . addslashes($peerPrivateKey) . '" | wg pubkey']);
         if (!$result->successful()) {
             throw new Exception('Failed to generate peer public key');
         }
@@ -122,18 +123,25 @@ class WireGuardService
             return;
         }
         
-        $command = "wg set wg0 peer {$peerPublicKey} allowed-ips {$peerIp}/32 persistent-keepalive 25";
-        $result = Process::run($command);
+        // Validate inputs to prevent command injection
+        if (!preg_match('/^[A-Za-z0-9+\/=]{44}$/', $peerPublicKey)) {
+            throw new Exception('Invalid peer public key format');
+        }
+        
+        if (!filter_var($peerIp, FILTER_VALIDATE_IP)) {
+            throw new Exception('Invalid peer IP address');
+        }
+        
+        $result = Process::run(['wg', 'set', 'wg0', 'peer', $peerPublicKey, 'allowed-ips', $peerIp . '/32', 'persistent-keepalive', '25']);
         
         if (!$result->successful()) {
             \Log::error('Failed to add WireGuard peer', [
-                'command' => $command,
                 'error' => $result->errorOutput()
             ]);
             throw new Exception('Failed to add peer to WireGuard. Check server logs and sudo permissions.');
         }
         
-        $result = Process::run('wg-quick save wg0');
+        $result = Process::run(['wg-quick', 'save', 'wg0']);
         if (!$result->successful()) {
             \Log::error('Failed to save WireGuard config', ['error' => $result->errorOutput()]);
             throw new Exception('Failed to save WireGuard config');
@@ -151,16 +159,20 @@ class WireGuardService
             return;
         }
         
-        $result = Process::run("wg set wg0 peer {$peerPublicKey} remove");
+        // Validate input to prevent command injection
+        if (!preg_match('/^[A-Za-z0-9+\/=]{44}$/', $peerPublicKey)) {
+            throw new Exception('Invalid peer public key format');
+        }
+        
+        $result = Process::run(['wg', 'set', 'wg0', 'peer', $peerPublicKey, 'remove']);
         if (!$result->successful()) {
             \Log::error('Failed to remove WireGuard peer', [
-                'public_key' => $peerPublicKey,
                 'error' => $result->errorOutput()
             ]);
             throw new Exception('Failed to remove peer from VPN');
         }
         
-        $result = Process::run('wg-quick save wg0');
+        $result = Process::run(['wg-quick', 'save', 'wg0']);
         if (!$result->successful()) {
             \Log::warning('Failed to save WireGuard config after peer removal');
         }
@@ -172,7 +184,12 @@ class WireGuardService
             return ['connected' => false, 'message' => 'No VPN configured'];
         }
         
-        $result = Process::run("wg show wg0 peers");
+        // Validate input
+        if (!preg_match('/^[A-Za-z0-9+\/=]{44}$/', $peerPublicKey)) {
+            return ['connected' => false, 'message' => 'Invalid key format'];
+        }
+        
+        $result = Process::run(['wg', 'show', 'wg0', 'peers']);
         if (!$result->successful()) {
             return ['connected' => false, 'message' => 'Cannot check VPN status'];
         }
@@ -182,7 +199,7 @@ class WireGuardService
         
         if ($connected) {
             // Get peer details
-            $result = Process::run("wg show wg0 dump");
+            $result = Process::run(['wg', 'show', 'wg0', 'dump']);
             if ($result->successful()) {
                 $lines = explode("\n", trim($result->output()));
                 foreach ($lines as $line) {
@@ -207,8 +224,30 @@ class WireGuardService
     
     public function generateMikrotikScript($config, $vpsPublicIp, $apiPassword)
     {
-        // Escape special characters in password
-        $escapedPassword = addslashes($apiPassword);
+        // Validate inputs
+        if (!filter_var($vpsPublicIp, FILTER_VALIDATE_IP)) {
+            throw new Exception('Invalid VPS IP address');
+        }
+        
+        if (!filter_var($config['peer_ip'], FILTER_VALIDATE_IP)) {
+            throw new Exception('Invalid peer IP address');
+        }
+        
+        if (!filter_var($config['vps_ip'], FILTER_VALIDATE_IP)) {
+            throw new Exception('Invalid VPS IP address');
+        }
+        
+        // Validate WireGuard keys format
+        if (!preg_match('/^[A-Za-z0-9+\/=]{44}$/', $config['peer_private_key'])) {
+            throw new Exception('Invalid peer private key format');
+        }
+        
+        if (!preg_match('/^[A-Za-z0-9+\/=]{44}$/', $config['vps_public_key'])) {
+            throw new Exception('Invalid VPS public key format');
+        }
+        
+        // Escape special characters in password for MikroTik script
+        $escapedPassword = str_replace(['\\', '"', '$'], ['\\\\', '\\"', '\\$'], $apiPassword);
         $timestamp = date('Y-m-d H:i:s');
         
         return <<<SCRIPT

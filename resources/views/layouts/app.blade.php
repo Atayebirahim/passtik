@@ -1,15 +1,22 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="{{ app()->getLocale() }}" dir="{{ $isRtl ?? false ? 'rtl' : 'ltr' }}">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>@yield('title', 'Passtik - Premium MikroTik SaaS')</title>
+    <title>@yield('title', __('messages.app_name') . ' - Premium MikroTik SaaS')</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
     <style>
         body { font-family: 'Inter', sans-serif; }
+        [dir="rtl"] { text-align: right; }
+        [dir="rtl"] .lg\:ml-64 { margin-left: 0 !important; margin-right: 16rem !important; }
+        [dir="rtl"] aside { left: auto; right: 0; }
+        [dir="rtl"] aside.transform.-translate-x-full { transform: translateX(100%); }
+        [dir="rtl"] aside.lg\:translate-x-0 { transform: translateX(0) !important; }
+        [dir="rtl"] .text-left { text-align: right; }
+        [dir="rtl"] .text-right { text-align: left; }
         @keyframes fadeInUp { from { opacity: 0; transform: translateY(30px); } to { opacity: 1; transform: translateY(0); } }
         @keyframes shimmer { 0% { background-position: -1000px 0; } 100% { background-position: 1000px 0; } }
         .animate-fadeInUp { animation: fadeInUp 0.6s ease-out forwards; }
@@ -43,7 +50,7 @@
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path>
                         </svg>
                     </div>
-                    <span class="text-2xl font-bold">PASSTIK</span>
+                    <span class="text-2xl font-bold">{{ __('messages.app_name') }}</span>
                 </div>
                 <button id="close-sidebar" class="lg:hidden text-gray-400 hover:text-white">
                     <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -59,7 +66,7 @@
                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
                     </svg>
-                    <span>Admin Dashboard</span>
+                    <span>{{ __('messages.admin_dashboard') }}</span>
                 </a>
                 @endif
                 
@@ -67,7 +74,7 @@
                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path>
                     </svg>
-                    <span>Routers</span>
+                    <span>{{ __('messages.routers') }}</span>
                 </a>
                 
                 @if(request()->routeIs('routers.manage'))
@@ -79,7 +86,7 @@
                             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
                             </svg>
-                            <span>Dashboard</span>
+                            <span>{{ __('messages.dashboard') }}</span>
                         </a>
                     @endif
                 @endif
@@ -93,7 +100,7 @@
                             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 5v2m0 4v2m0 4v2M5 5a2 2 0 00-2 2v3a2 2 0 110 4v3a2 2 0 002 2h14a2 2 0 002-2v-3a2 2 0 110-4V7a2 2 0 00-2-2H5z"></path>
                             </svg>
-                            <span>Vouchers</span>
+                            <span>{{ __('messages.vouchers') }}</span>
                         </a>
                     @endif
                 @endif
@@ -118,6 +125,21 @@
                     </div>
                 </div>
                 <div class="flex items-center gap-4">
+                    <!-- Language Switcher -->
+                    <div class="relative z-50" x-data="{ open: false }">
+                        <button @click="open = !open" class="flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-gray-100 transition-colors">
+                            <svg class="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 5h12M9 3v2m1.048 9.5A18.022 18.022 0 016.412 9m6.088 9h7M11 21l5-10 5 10M12.751 5C11.783 10.77 8.07 15.61 3 18.129"></path>
+                            </svg>
+                            <span class="text-sm font-medium text-gray-700">{{ strtoupper($currentLocale ?? 'en') }}</span>
+                        </button>
+                        <div x-show="open" @click.away="open = false" class="absolute {{ $isRtl ?? false ? 'left-0' : 'right-0' }} mt-2 w-40 bg-white rounded-lg shadow-lg py-2 z-[100]" style="display: none;" x-transition>
+                            <a href="?lang=en" class="block px-4 py-2 text-sm hover:bg-gray-100 {{ ($currentLocale ?? 'en') === 'en' ? 'bg-indigo-50 text-indigo-600' : 'text-gray-700' }}">English</a>
+                            <a href="?lang=ar" class="block px-4 py-2 text-sm hover:bg-gray-100 {{ ($currentLocale ?? 'en') === 'ar' ? 'bg-indigo-50 text-indigo-600' : 'text-gray-700' }}">العربية</a>
+                            <a href="?lang=es" class="block px-4 py-2 text-sm hover:bg-gray-100 {{ ($currentLocale ?? 'en') === 'es' ? 'bg-indigo-50 text-indigo-600' : 'text-gray-700' }}">Español</a>
+                            <a href="?lang=fr" class="block px-4 py-2 text-sm hover:bg-gray-100 {{ ($currentLocale ?? 'en') === 'fr' ? 'bg-indigo-50 text-indigo-600' : 'text-gray-700' }}">Français</a>
+                        </div>
+                    </div>
                     @yield('header-actions')
                 </div>
             </div>
@@ -137,18 +159,30 @@
         const closeSidebar = document.getElementById('close-sidebar');
 
         function openSidebar() {
-            sidebar.classList.remove('-translate-x-full');
-            overlay.classList.remove('hidden');
+            if (sidebar && overlay) {
+                sidebar.classList.remove('-translate-x-full');
+                overlay.classList.remove('hidden');
+            }
         }
 
         function closeSidebarFn() {
-            sidebar.classList.add('-translate-x-full');
-            overlay.classList.add('hidden');
+            if (sidebar && overlay) {
+                sidebar.classList.add('-translate-x-full');
+                overlay.classList.add('hidden');
+            }
         }
 
-        mobileMenuBtn?.addEventListener('click', openSidebar);
-        closeSidebar?.addEventListener('click', closeSidebarFn);
-        overlay?.addEventListener('click', closeSidebarFn);
+        if (mobileMenuBtn) {
+            mobileMenuBtn.addEventListener('click', openSidebar);
+        }
+        
+        if (closeSidebar) {
+            closeSidebar.addEventListener('click', closeSidebarFn);
+        }
+        
+        if (overlay) {
+            overlay.addEventListener('click', closeSidebarFn);
+        }
 
         // Close sidebar on window resize to desktop
         window.addEventListener('resize', () => {
@@ -156,23 +190,39 @@
                 closeSidebarFn();
             }
         });
+        
         @if(session('alert_success'))
-            Swal.fire({
-                icon: 'success',
-                title: 'Success!',
-                text: '{{ session('alert_success') }}',
-                timer: 3000,
-                showConfirmButton: false
-            });
+            if (typeof Swal !== 'undefined') {
+                Swal.fire({
+                    icon: 'success',
+                    title: 'Success!',
+                    text: '{{ addslashes(session('alert_success')) }}',
+                    timer: 3000,
+                    showConfirmButton: false
+                });
+            }
         @endif
 
         @if(session('alert_error'))
-            Swal.fire({
-                icon: 'error',
-                title: 'Error!',
-                text: '{{ session('alert_error') }}',
-                confirmButtonColor: '#6366f1'
-            });
+            if (typeof Swal !== 'undefined') {
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Error!',
+                    text: '{{ addslashes(session('alert_error')) }}',
+                    confirmButtonColor: '#6366f1'
+                });
+            }
+        @endif
+        
+        @if(session('alert_warning'))
+            if (typeof Swal !== 'undefined') {
+                Swal.fire({
+                    icon: 'warning',
+                    title: 'Warning!',
+                    text: '{{ addslashes(session('alert_warning')) }}',
+                    confirmButtonColor: '#6366f1'
+                });
+            }
         @endif
     </script>
 </body>

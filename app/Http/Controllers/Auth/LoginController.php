@@ -16,14 +16,19 @@ class LoginController extends Controller
     public function login(Request $request)
     {
         $credentials = $request->validate([
-            'email' => 'required|email',
-            'password' => 'required',
+            'email' => 'required|email|max:255',
+            'password' => 'required|string|min:6|max:255',
         ]);
 
         if (Auth::attempt($credentials, $request->filled('remember'))) {
             $request->session()->regenerate();
+            
+            \Log::info('User logged in', ['user_id' => Auth::id(), 'ip' => $request->ip()]);
+            
             return redirect()->intended(route('routers.index'));
         }
+
+        \Log::warning('Failed login attempt', ['email' => $credentials['email'], 'ip' => $request->ip()]);
 
         return back()->withErrors([
             'email' => 'The provided credentials do not match our records.',

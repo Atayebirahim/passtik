@@ -20,6 +20,7 @@ class User extends Authenticatable implements MustVerifyEmail
     protected $fillable = [
         'name',
         'email',
+        'phone',
         'password',
         'plan',
         'voucher_limit',
@@ -104,7 +105,7 @@ class User extends Authenticatable implements MustVerifyEmail
 
     public function vouchers()
     {
-        return $this->hasMany(Voucher::class);
+        return $this->hasManyThrough(Voucher::class, Router::class);
     }
     
     public function subscriptionRequests()

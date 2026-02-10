@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Router;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use RouterOS\Client;
 use RouterOS\Config;
 use App\Services\WireGuardService;
@@ -102,9 +103,11 @@ class RouterController extends Controller
     public function destroy(Router $router) {
         $this->authorize('delete', $router);
         try {
-            $wg = new WireGuardService();
-            $wg->removePeerFromVps($router->vpn_public_key);
-            $router->delete();
+            \DB::transaction(function() use ($router) {
+                $wg = new WireGuardService();
+                $wg->removePeerFromVps($router->vpn_public_key);
+                $router->delete();
+            });
             return redirect()->route('routers.index')->with('alert_success', 'Router and VPN peer deleted successfully!');
         } catch (Exception $e) {
             \Log::error('Failed to remove VPN peer during router deletion', [
@@ -215,9 +218,9 @@ class RouterController extends Controller
         $this->authorize('view', $router);
         $cacheKey = 'traffic_' . $router->id . '_' . request()->ip();
         if (cache()->has($cacheKey)) {
-            return response()->json(['success' => false, 'error' => 'Rate limited']);
+            return response()->json(['success' => false, 'error' => 'Rate limited'], 429);
         }
-        cache()->put($cacheKey, true, 2);
+        cache()->put($cacheKey, true, 5);
         
         $config = new Config([
             'host' => $router->local_ip,

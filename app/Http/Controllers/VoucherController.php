@@ -73,9 +73,7 @@ class VoucherController extends Controller
 
         // Check voucher limit
         $user = auth()->user();
-        $currentCount = Voucher::whereHas('router', function($q) use ($user) {
-            $q->where('user_id', $user->id);
-        })->count();
+        $currentCount = $user->routers()->withCount('vouchers')->get()->sum('vouchers_count');
 
         if ($currentCount + $validated['quantity'] > $user->voucher_limit) {
             return back()->with('alert_error', __('messages.voucher_limit_exceeded') . " Your plan allows {$user->voucher_limit} vouchers. You have {$currentCount} vouchers. " . __('messages.upgrade_plan_message'));
@@ -208,22 +206,31 @@ class VoucherController extends Controller
             'timeout' => 5,
         ]);
 
-        $client = new \RouterOS\Client($config);
-        
-        $addCommand = [
-            '/ip/hotspot/user/add',
-            '=name=' . $voucher->code,
-            '=password=' . $voucher->password,
-            '=profile=' . $voucher->profile,
-            '=limit-uptime=' . $voucher->duration . 'm',
-            '=comment=Passtik_Redeemed_' . now()->format('Y-m-d_H:i')
-        ];
+        try {
+            $client = new \RouterOS\Client($config);
+            
+            $addCommand = [
+                '/ip/hotspot/user/add',
+                '=name=' . $voucher->code,
+                '=password=' . $voucher->password,
+                '=profile=' . $voucher->profile,
+                '=limit-uptime=' . $voucher->duration . 'm',
+                '=comment=Passtik_Redeemed_' . now()->format('Y-m-d_H:i')
+            ];
 
-        if ($mac) {
-            $addCommand[] = '=mac-address=' . $mac;
+            if ($mac) {
+                $addCommand[] = '=mac-address=' . $mac;
+            }
+
+            $response = $client->query($addCommand)->read();
+            
+            if (isset($response['!trap'])) {
+                throw new \Exception('MikroTik API error: ' . ($response['!trap'][0]['message'] ?? 'Unknown error'));
+            }
+        } catch (\Exception $e) {
+            \Log::error('MikroTik user creation failed', ['voucher_id' => $voucher->id, 'error' => $e->getMessage()]);
+            throw $e;
         }
-
-        $client->query($addCommand)->read();
     }
 
     private function logRedemption($voucherId, $request, $status, $error = null)

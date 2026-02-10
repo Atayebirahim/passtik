@@ -180,6 +180,12 @@ class AdminController extends Controller
                 return back()->with('alert_error', 'Cannot modify your own admin status');
             }
 
+            if (isset($validated['is_admin']) && !$validated['is_admin']) {
+                if ($user->is_admin && User::where('is_admin', true)->count() <= 1) {
+                    return back()->with('alert_error', 'Cannot remove the last admin user');
+                }
+            }
+
             $user->update($validated);
             return redirect()->route('admin.users')->with('alert_success', 'User updated successfully');
         } catch (\Exception $e) {

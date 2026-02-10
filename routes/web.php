@@ -41,6 +41,11 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('/upgrade', [\App\Http\Controllers\SubscriptionController::class, 'showUpgradePage'])->name('subscription.upgrade');
     Route::post('/subscription/request', [\App\Http\Controllers\SubscriptionController::class, 'requestUpgrade'])->name('subscription.request');
     
+    Route::get('/profile', [\App\Http\Controllers\ProfileController::class, 'show'])->name('profile.show');
+    Route::put('/profile', [\App\Http\Controllers\ProfileController::class, 'update'])->name('profile.update');
+    Route::put('/profile/password', [\App\Http\Controllers\ProfileController::class, 'updatePassword'])->name('profile.password');
+    Route::delete('/profile', [\App\Http\Controllers\ProfileController::class, 'deleteAccount'])->name('profile.delete');
+    
     Route::resource('routers', RouterController::class);
     Route::get('/routers/{router}/check', [RouterController::class, 'checkStatus'])->name('routers.check');
     Route::get('/routers/{router}/manage', [RouterController::class, 'manage'])->name('routers.manage');

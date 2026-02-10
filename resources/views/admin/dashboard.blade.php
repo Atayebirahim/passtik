@@ -3,18 +3,44 @@
 @section('content')
 <div class="min-h-screen p-8">
     <!-- Header -->
-    <div class="glass-effect rounded-2xl shadow-xl p-8 mb-8 animate-fadeInUp">
-        <div class="flex justify-between items-center">
+    <div class="glass-effect rounded-2xl shadow-xl p-4 sm:p-6 lg:p-8 mb-8 animate-fadeInUp">
+        <div class="flex flex-col lg:flex-row lg:justify-between lg:items-center gap-4">
             <div>
-                <h1 class="text-4xl font-bold gradient-text">{{ __('messages.admin_dashboard') }}</h1>
-                <p class="text-gray-600 mt-2">{{ __('messages.welcome') }}, {{ auth()->user()->name }}</p>
+                <h1 class="text-2xl sm:text-3xl lg:text-4xl font-bold gradient-text">{{ __('messages.admin_dashboard') }}</h1>
+                <p class="text-gray-600 mt-2 text-sm sm:text-base">{{ __('messages.welcome') }}, {{ auth()->user()->name }}</p>
             </div>
-            <div class="flex space-x-3">
-                <a href="{{ route('admin.users') }}" class="btn-premium px-6 py-3 gradient-bg text-white rounded-xl font-semibold shadow-lg">{{ __('messages.users') }}</a>
-                <a href="{{ route('admin.routers') }}" class="btn-premium px-6 py-3 bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-xl font-semibold shadow-lg">{{ __('messages.routers') }}</a>
-                <a href="{{ route('admin.vouchers') }}" class="btn-premium px-6 py-3 bg-gradient-to-r from-green-500 to-emerald-600 text-white rounded-xl font-semibold shadow-lg">{{ __('messages.vouchers') }}</a>
-                <a href="{{ route('admin.subscriptions') }}" class="btn-premium px-6 py-3 bg-gradient-to-r from-yellow-500 to-orange-600 text-white rounded-xl font-semibold shadow-lg">{{ __('messages.subscription') }}</a>
-                <a href="{{ route('admin.settings') }}" class="btn-premium px-6 py-3 bg-gradient-to-r from-gray-700 to-gray-900 text-white rounded-xl font-semibold shadow-lg">{{ __('messages.settings') }}</a>
+            <div class="grid grid-cols-2 sm:grid-cols-3 lg:flex gap-2 sm:gap-3">
+                <a href="{{ route('admin.users') }}" class="flex items-center justify-center gap-2 px-3 sm:px-4 py-2 sm:py-2.5 bg-white hover:bg-gray-50 text-gray-700 rounded-lg font-medium shadow-sm border border-gray-200 transition-all hover:shadow-md text-sm">
+                    <svg class="w-4 h-4 sm:w-5 sm:h-5 text-blue-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"></path>
+                    </svg>
+                    <span class="hidden sm:inline">{{ __('messages.users') }}</span>
+                </a>
+                <a href="{{ route('admin.routers') }}" class="flex items-center justify-center gap-2 px-3 sm:px-4 py-2 sm:py-2.5 bg-white hover:bg-gray-50 text-gray-700 rounded-lg font-medium shadow-sm border border-gray-200 transition-all hover:shadow-md text-sm">
+                    <svg class="w-4 h-4 sm:w-5 sm:h-5 text-purple-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 12h14M5 12a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v4a2 2 0 01-2 2M5 12a2 2 0 00-2 2v4a2 2 0 002 2h14a2 2 0 002-2v-4a2 2 0 00-2-2m-2-4h.01M17 16h.01"></path>
+                    </svg>
+                    <span class="hidden sm:inline">{{ __('messages.routers') }}</span>
+                </a>
+                <a href="{{ route('admin.vouchers') }}" class="flex items-center justify-center gap-2 px-3 sm:px-4 py-2 sm:py-2.5 bg-white hover:bg-gray-50 text-gray-700 rounded-lg font-medium shadow-sm border border-gray-200 transition-all hover:shadow-md text-sm">
+                    <svg class="w-4 h-4 sm:w-5 sm:h-5 text-green-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 5v2m0 4v2m0 4v2M5 5a2 2 0 00-2 2v3a2 2 0 110 4v3a2 2 0 002 2h14a2 2 0 002-2v-3a2 2 0 110-4V7a2 2 0 00-2-2H5z"></path>
+                    </svg>
+                    <span class="hidden sm:inline">{{ __('messages.vouchers') }}</span>
+                </a>
+                <a href="{{ route('admin.subscriptions') }}" class="flex items-center justify-center gap-2 px-3 sm:px-4 py-2 sm:py-2.5 bg-white hover:bg-gray-50 text-gray-700 rounded-lg font-medium shadow-sm border border-gray-200 transition-all hover:shadow-md text-sm">
+                    <svg class="w-4 h-4 sm:w-5 sm:h-5 text-yellow-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                    </svg>
+                    <span class="hidden sm:inline">{{ __('messages.subscription') }}</span>
+                </a>
+                <a href="{{ route('admin.settings') }}" class="flex items-center justify-center gap-2 px-3 sm:px-4 py-2 sm:py-2.5 bg-white hover:bg-gray-50 text-gray-700 rounded-lg font-medium shadow-sm border border-gray-200 transition-all hover:shadow-md text-sm col-span-2 sm:col-span-1">
+                    <svg class="w-4 h-4 sm:w-5 sm:h-5 text-gray-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path>
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                    </svg>
+                    <span class="hidden sm:inline">{{ __('messages.settings') }}</span>
+                </a>
             </div>
         </div>
     </div>

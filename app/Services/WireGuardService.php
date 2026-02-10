@@ -132,7 +132,7 @@ class WireGuardService
             throw new Exception('Invalid peer IP address');
         }
         
-        $result = Process::run(['wg', 'set', 'wg0', 'peer', $peerPublicKey, 'allowed-ips', $peerIp . '/32', 'persistent-keepalive', '25']);
+        $result = Process::run(['sudo', 'wg', 'set', 'wg0', 'peer', $peerPublicKey, 'allowed-ips', $peerIp . '/32', 'persistent-keepalive', '25']);
         
         if (!$result->successful()) {
             \Log::error('Failed to add WireGuard peer', [
@@ -141,7 +141,7 @@ class WireGuardService
             throw new Exception('Failed to add peer to WireGuard. Check server logs and sudo permissions.');
         }
         
-        $result = Process::run(['wg-quick', 'save', 'wg0']);
+        $result = Process::run(['sudo', 'wg-quick', 'save', 'wg0']);
         if (!$result->successful()) {
             \Log::error('Failed to save WireGuard config', ['error' => $result->errorOutput()]);
             throw new Exception('Failed to save WireGuard config');
@@ -164,7 +164,7 @@ class WireGuardService
             throw new Exception('Invalid peer public key format');
         }
         
-        $result = Process::run(['wg', 'set', 'wg0', 'peer', $peerPublicKey, 'remove']);
+        $result = Process::run(['sudo', 'wg', 'set', 'wg0', 'peer', $peerPublicKey, 'remove']);
         if (!$result->successful()) {
             \Log::error('Failed to remove WireGuard peer', [
                 'error' => $result->errorOutput()
@@ -172,7 +172,7 @@ class WireGuardService
             throw new Exception('Failed to remove peer from VPN');
         }
         
-        $result = Process::run(['wg-quick', 'save', 'wg0']);
+        $result = Process::run(['sudo', 'wg-quick', 'save', 'wg0']);
         if (!$result->successful()) {
             \Log::warning('Failed to save WireGuard config after peer removal');
         }
@@ -189,7 +189,7 @@ class WireGuardService
             return ['connected' => false, 'message' => 'Invalid key format'];
         }
         
-        $result = Process::run(['wg', 'show', 'wg0', 'peers']);
+        $result = Process::run(['sudo', 'wg', 'show', 'wg0', 'peers']);
         if (!$result->successful()) {
             return ['connected' => false, 'message' => 'Cannot check VPN status'];
         }
@@ -199,7 +199,7 @@ class WireGuardService
         
         if ($connected) {
             // Get peer details
-            $result = Process::run(['wg', 'show', 'wg0', 'dump']);
+            $result = Process::run(['sudo', 'wg', 'show', 'wg0', 'dump']);
             if ($result->successful()) {
                 $lines = explode("\n", trim($result->output()));
                 foreach ($lines as $line) {

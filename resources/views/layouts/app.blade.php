@@ -3,10 +3,14 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
     <title>@yield('title', __('messages.app_name') . ' - Premium MikroTik SaaS')</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
     <style>
         body { font-family: 'Inter', sans-serif; }
@@ -17,6 +21,10 @@
         [dir="rtl"] aside.lg\:translate-x-0 { transform: translateX(0) !important; }
         [dir="rtl"] .text-left { text-align: right; }
         [dir="rtl"] .text-right { text-align: left; }
+        @media (max-width: 1023px) {
+            aside { transform: translateX(-100%); }
+            [dir="rtl"] aside { transform: translateX(100%); }
+        }
         @keyframes fadeInUp { from { opacity: 0; transform: translateY(30px); } to { opacity: 1; transform: translateY(0); } }
         @keyframes shimmer { 0% { background-position: -1000px 0; } 100% { background-position: 1000px 0; } }
         .animate-fadeInUp { animation: fadeInUp 0.6s ease-out forwards; }
@@ -37,10 +45,10 @@
     @include('components.notifications')
     
     <!-- Mobile overlay -->
-    <div id="mobile-overlay" class="fixed inset-0 bg-black bg-opacity-50 z-30 lg:hidden hidden"></div>
+    <div id="mobile-overlay" class="fixed inset-0 bg-black bg-opacity-50 z-40 lg:hidden hidden"></div>
     
     <!-- Sidebar -->
-    <aside id="sidebar" class="fixed top-0 left-0 z-40 w-64 h-screen gradient-bg text-white transform -translate-x-full lg:translate-x-0 transition-transform duration-300 shadow-2xl">
+    <aside id="sidebar" class="fixed top-0 left-0 z-50 w-64 h-screen gradient-bg text-white transform -translate-x-full lg:translate-x-0 transition-transform duration-300 shadow-2xl overflow-y-auto">
         <div class="h-full px-6 py-8 flex flex-col">
             <!-- Logo -->
             <div class="flex items-center justify-between mb-12">
@@ -77,6 +85,13 @@
                     <span>{{ __('messages.routers') }}</span>
                 </a>
                 
+                <a href="{{ route('profile.show') }}" class="flex items-center gap-3 p-3 {{ request()->routeIs('profile.*') ? 'bg-white/20 text-white' : 'text-white/70 hover:text-white hover:bg-white/10' }} rounded-xl transition-all">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path>
+                    </svg>
+                    <span>{{ __('messages.profile') }}</span>
+                </a>
+                
                 @if(request()->routeIs('routers.manage'))
                     @php
                         $currentRouter = request()->route('router');
@@ -109,9 +124,9 @@
     </aside>
 
     <!-- Main Content -->
-    <main class="lg:ml-64 min-h-screen">
+    <main class="min-h-screen lg:ml-64">
         <!-- Top Bar -->
-        <header class="glass-effect shadow-lg px-4 lg:px-6 py-4">
+        <header class="glass-effect shadow-lg px-4 lg:px-6 py-4 sticky top-0 z-30">
             <div class="flex items-center justify-between">
                 <div class="flex items-center gap-4">
                     <button id="mobile-menu-btn" class="lg:hidden text-gray-600 hover:text-gray-900">
@@ -124,16 +139,104 @@
                         <p class="text-sm text-gray-600 hidden sm:block">@yield('page-subtitle')</p>
                     </div>
                 </div>
-                <div class="flex items-center gap-4">
+                <div class="flex items-center gap-2">
+                    <!-- Settings -->
+                    <a href="{{ route('profile.show') }}" class="p-2 rounded-lg hover:bg-gray-100 transition-colors" title="{{ __('messages.settings') }}">
+                        <svg class="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path>
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                        </svg>
+                    </a>
+
+                    <!-- User Profile -->
+                    <div class="relative" x-data="{ open: false }">
+                        <button @click="open = !open" class="flex items-center gap-2 p-2 rounded-lg hover:bg-gray-100 transition-colors">
+                            <div class="w-8 h-8 bg-gradient-to-r from-indigo-500 to-purple-600 rounded-full flex items-center justify-center text-white font-semibold text-sm">
+                                {{ strtoupper(substr(auth()->user()->name, 0, 1)) }}
+                            </div>
+                        </button>
+                        <div x-show="open" @click.away="open = false" class="absolute {{ $isRtl ?? false ? 'left-0' : 'right-0' }} mt-2 w-56 bg-white rounded-lg shadow-2xl border border-gray-200 py-2 z-50" style="display: none;" x-transition>
+                            <div class="px-4 py-3 border-b border-gray-200">
+                                <p class="text-sm font-medium text-gray-900">{{ auth()->user()->name }}</p>
+                                <p class="text-xs text-gray-500">{{ auth()->user()->email }}</p>
+                                <p class="text-xs text-indigo-600 mt-1">{{ ucfirst(auth()->user()->plan) }} {{ __('messages.plan') }}</p>
+                            </div>
+                            <a href="{{ route('profile.show') }}" class="flex items-center gap-3 px-4 py-2 hover:bg-gray-50 transition-colors">
+                                <svg class="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path>
+                                </svg>
+                                <span class="text-sm text-gray-700">{{ __('messages.profile') }}</span>
+                            </a>
+                            @if(auth()->user()->plan === 'free')
+                            <a href="{{ route('subscription.upgrade') }}" class="flex items-center gap-3 px-4 py-2 hover:bg-gray-50 transition-colors">
+                                <svg class="w-5 h-5 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path>
+                                </svg>
+                                <span class="text-sm text-gray-700">{{ __('messages.upgrade') }}</span>
+                            </a>
+                            @endif
+                            <div class="border-t border-gray-200 my-2"></div>
+                            <form method="POST" action="{{ route('logout') }}">
+                                @csrf
+                                <button type="submit" class="flex items-center gap-3 px-4 py-2 hover:bg-gray-50 transition-colors w-full text-left">
+                                    <svg class="w-5 h-5 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path>
+                                    </svg>
+                                    <span class="text-sm text-gray-700">{{ __('messages.logout') }}</span>
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+
+                    <!-- Notifications -->
+                    <div class="relative" x-data="{ open: false }">
+                        <button @click="open = !open" class="relative p-2 rounded-lg hover:bg-gray-100 transition-colors">
+                            <svg class="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"></path>
+                            </svg>
+                            @if(auth()->user()->plan === 'free')
+                            <span class="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full"></span>
+                            @endif
+                        </button>
+                        <div x-show="open" @click.away="open = false" class="absolute {{ $isRtl ?? false ? 'left-0' : 'right-0' }} mt-2 w-80 bg-white rounded-lg shadow-2xl border border-gray-200 z-50" style="display: none;" x-transition>
+                            <div class="p-4 border-b border-gray-200">
+                                <h3 class="font-semibold text-gray-900">{{ __('messages.notifications') }}</h3>
+                            </div>
+                            <div class="max-h-96 overflow-y-auto">
+                                @if(auth()->user()->plan === 'free')
+                                <a href="{{ route('subscription.upgrade') }}" class="block p-4 hover:bg-gray-50 transition-colors border-b border-gray-100">
+                                    <div class="flex items-start gap-3">
+                                        <div class="p-2 bg-indigo-100 rounded-lg">
+                                            <svg class="w-5 h-5 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path>
+                                            </svg>
+                                        </div>
+                                        <div class="flex-1">
+                                            <p class="text-sm font-medium text-gray-900">{{ __('messages.upgrade_to_pro') }}</p>
+                                            <p class="text-xs text-gray-500 mt-1">{{ __('messages.unlock_more_features') }}</p>
+                                        </div>
+                                    </div>
+                                </a>
+                                @endif
+                                <div class="p-8 text-center text-gray-500">
+                                    <svg class="w-12 h-12 mx-auto text-gray-300 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4"></path>
+                                    </svg>
+                                    <p class="text-sm">{{ __('messages.no_notifications') }}</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
                     <!-- Language Switcher -->
-                    <div class="relative z-50" x-data="{ open: false }">
+                    <div class="relative" x-data="{ open: false }">
                         <button @click="open = !open" class="flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-gray-100 transition-colors">
                             <svg class="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 5h12M9 3v2m1.048 9.5A18.022 18.022 0 016.412 9m6.088 9h7M11 21l5-10 5 10M12.751 5C11.783 10.77 8.07 15.61 3 18.129"></path>
                             </svg>
                             <span class="text-sm font-medium text-gray-700">{{ strtoupper($currentLocale ?? 'en') }}</span>
                         </button>
-                        <div x-show="open" @click.away="open = false" class="absolute {{ $isRtl ?? false ? 'left-0' : 'right-0' }} mt-2 w-40 bg-white rounded-lg shadow-lg py-2 z-[100]" style="display: none;" x-transition>
+                        <div x-show="open" @click.away="open = false" class="absolute {{ $isRtl ?? false ? 'left-0' : 'right-0' }} mt-2 w-40 bg-white rounded-lg shadow-2xl py-2 border border-gray-200 z-50" style="display: none;" x-transition>
                             <a href="?lang=en" class="block px-4 py-2 text-sm hover:bg-gray-100 {{ ($currentLocale ?? 'en') === 'en' ? 'bg-indigo-50 text-indigo-600' : 'text-gray-700' }}">English</a>
                             <a href="?lang=ar" class="block px-4 py-2 text-sm hover:bg-gray-100 {{ ($currentLocale ?? 'en') === 'ar' ? 'bg-indigo-50 text-indigo-600' : 'text-gray-700' }}">العربية</a>
                             <a href="?lang=es" class="block px-4 py-2 text-sm hover:bg-gray-100 {{ ($currentLocale ?? 'en') === 'es' ? 'bg-indigo-50 text-indigo-600' : 'text-gray-700' }}">Español</a>

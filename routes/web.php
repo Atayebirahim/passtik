@@ -62,8 +62,19 @@ Route::post('/api/vouchers/redeem', [VoucherController::class, 'redeem'])->middl
 Route::get('/terms', function () { return view('legal.terms'); })->name('terms');
 Route::get('/privacy', function () { return view('legal.privacy'); })->name('privacy');
 
-// Admin routes (add proper admin middleware later)
-Route::middleware(['auth', 'verified'])->prefix('admin')->group(function () {
+// Admin routes
+Route::middleware(['auth', 'verified', \App\Http\Middleware\AdminMiddleware::class])->prefix('admin')->group(function () {
+    Route::get('/dashboard', [\App\Http\Controllers\AdminController::class, 'dashboard'])->name('admin.dashboard');
+    Route::get('/users', [\App\Http\Controllers\AdminController::class, 'users'])->name('admin.users');
+    Route::get('/users/{user}', [\App\Http\Controllers\AdminController::class, 'showUser'])->name('admin.users.show');
+    Route::get('/users/{user}/edit', [\App\Http\Controllers\AdminController::class, 'editUser'])->name('admin.users.edit');
+    Route::put('/users/{user}', [\App\Http\Controllers\AdminController::class, 'updateUser'])->name('admin.users.update');
+    Route::post('/users/{user}/toggle-admin', [\App\Http\Controllers\AdminController::class, 'toggleAdmin'])->name('admin.users.toggle-admin');
+    Route::delete('/users/{user}', [\App\Http\Controllers\AdminController::class, 'deleteUser'])->name('admin.users.delete');
+    Route::get('/routers', [\App\Http\Controllers\AdminController::class, 'routers'])->name('admin.routers');
+    Route::get('/vouchers', [\App\Http\Controllers\AdminController::class, 'vouchers'])->name('admin.vouchers');
+    Route::get('/settings', [\App\Http\Controllers\AdminController::class, 'settings'])->name('admin.settings');
+    Route::post('/settings', [\App\Http\Controllers\AdminController::class, 'updateSettings'])->name('admin.settings.update');
     Route::get('/subscriptions', [\App\Http\Controllers\SubscriptionController::class, 'adminIndex'])->name('admin.subscriptions');
     Route::post('/subscriptions/{id}/approve', [\App\Http\Controllers\SubscriptionController::class, 'approve'])->name('admin.subscription.approve');
     Route::post('/subscriptions/{id}/reject', [\App\Http\Controllers\SubscriptionController::class, 'reject'])->name('admin.subscription.reject');

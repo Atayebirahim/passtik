@@ -30,8 +30,7 @@ class RouterController extends Controller
 
         try {
             $wg = new WireGuardService();
-            $routerId = Router::count() + 1;
-            $vpnConfig = $wg->generatePeerConfig($routerId);
+            $vpnConfig = $wg->generatePeerConfig();
             
             $validated['vpn_ip'] = $vpnConfig['peer_ip'];
             $validated['vpn_public_key'] = $vpnConfig['peer_public_key'];
@@ -55,7 +54,11 @@ class RouterController extends Controller
         
         try {
             $wg = new WireGuardService();
-            $vpsPublicIp = config('app.vps_public_ip', request()->getHost());
+            $vpsPublicIp = config('app.vps_public_ip');
+            
+            if (!$vpsPublicIp || $vpsPublicIp === 'your.vps.ip.here') {
+                return redirect()->route('routers.index')->with('alert_error', 'VPS_PUBLIC_IP not configured in .env file');
+            }
             
             $config = [
                 'peer_ip' => $router->vpn_ip,
@@ -65,8 +68,9 @@ class RouterController extends Controller
             ];
             
             $script = $wg->generateMikrotikScript($config, $vpsPublicIp, $router->api_password);
+            $vpnStatus = $wg->checkPeerStatus($router->vpn_public_key);
             
-            return view('routers.show', compact('router', 'script'));
+            return view('routers.show', compact('router', 'script', 'vpnStatus'));
         } catch (Exception $e) {
             return redirect()->route('routers.index')->with('alert_error', 'Failed to generate script: ' . $e->getMessage());
         }
@@ -93,12 +97,15 @@ class RouterController extends Controller
         try {
             $wg = new WireGuardService();
             $wg->removePeerFromVps($router->vpn_public_key);
+            $router->delete();
+            return redirect()->route('routers.index')->with('alert_success', 'Router and VPN peer deleted successfully!');
         } catch (Exception $e) {
-            \Log::error('Failed to remove VPN peer: ' . $e->getMessage());
+            \Log::error('Failed to remove VPN peer during router deletion', [
+                'router_id' => $router->id,
+                'error' => $e->getMessage()
+            ]);
+            return redirect()->route('routers.index')->with('alert_warning', 'Router deleted but VPN peer removal failed. Contact support.');
         }
-        
-        $router->delete();
-        return redirect()->route('routers.index')->with('alert_success', 'Router deleted successfully!');
     }
 
     public function checkStatus(Router $router) {

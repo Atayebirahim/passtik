@@ -5,33 +5,40 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>@yield('title', 'Passtik - Premium MikroTik SaaS')</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
     <style>
         body { font-family: 'Inter', sans-serif; }
-        .glass-effect {
-            background: rgba(255, 255, 255, 0.95);
-            backdrop-filter: blur(20px);
-            border: 1px solid rgba(255, 255, 255, 0.2);
-        }
-        .input-focus:focus {
-            box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
-            border-color: #6366f1;
-        }
+        @keyframes fadeInUp { from { opacity: 0; transform: translateY(30px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes shimmer { 0% { background-position: -1000px 0; } 100% { background-position: 1000px 0; } }
+        .animate-fadeInUp { animation: fadeInUp 0.6s ease-out forwards; }
+        .gradient-bg { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); }
+        .gradient-text { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+        .glass-effect { background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(20px); border: 1px solid rgba(255, 255, 255, 0.2); }
+        .card-hover { transition: all 0.3s ease; }
+        .card-hover:hover { transform: translateY(-5px); box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1); }
+        .btn-premium { position: relative; overflow: hidden; transition: all 0.3s ease; }
+        .btn-premium:hover { transform: translateY(-2px); box-shadow: 0 10px 20px rgba(0, 0, 0, 0.2); }
+        .btn-premium:active { transform: translateY(0); }
+        .btn-premium::before { content: ''; position: absolute; top: 0; left: -100%; width: 100%; height: 100%; background: linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent); transition: left 0.5s; }
+        .btn-premium:hover::before { left: 100%; }
+        .input-focus:focus { box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1); border-color: #6366f1; }
     </style>
 </head>
-<body class="bg-gray-50">
+<body class="bg-gradient-to-br from-gray-50 via-indigo-50 to-purple-50">
+    @include('components.notifications')
     
     <!-- Mobile overlay -->
     <div id="mobile-overlay" class="fixed inset-0 bg-black bg-opacity-50 z-30 lg:hidden hidden"></div>
     
     <!-- Sidebar -->
-    <aside id="sidebar" class="fixed top-0 left-0 z-40 w-64 h-screen bg-gradient-to-b from-slate-800 to-slate-900 text-white transform -translate-x-full lg:translate-x-0 transition-transform duration-300">
+    <aside id="sidebar" class="fixed top-0 left-0 z-40 w-64 h-screen gradient-bg text-white transform -translate-x-full lg:translate-x-0 transition-transform duration-300 shadow-2xl">
         <div class="h-full px-6 py-8 flex flex-col">
             <!-- Logo -->
             <div class="flex items-center justify-between mb-12">
                 <div class="flex items-center gap-3">
-                    <div class="w-10 h-10 bg-gradient-to-r from-indigo-600 to-purple-600 rounded-xl flex items-center justify-center">
+                    <div class="w-10 h-10 bg-white/20 backdrop-blur-lg rounded-xl flex items-center justify-center">
                         <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path>
                         </svg>
@@ -47,7 +54,16 @@
 
             <!-- Navigation -->
             <nav class="space-y-2 flex-1">
-                <a href="{{ route('routers.index') }}" class="flex items-center gap-3 p-3 {{ request()->routeIs('routers.*') && !request()->routeIs('routers.profiles') && !request()->routeIs('routers.manage') ? 'bg-indigo-600 text-white' : 'text-gray-300 hover:text-white hover:bg-white/10' }} rounded-xl transition-all">
+                @if(auth()->user()->is_admin)
+                <a href="{{ route('admin.dashboard') }}" class="flex items-center gap-3 p-3 {{ request()->routeIs('admin.dashboard') ? 'bg-white/20 text-white' : 'text-white/70 hover:text-white hover:bg-white/10' }} rounded-xl transition-all">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
+                    </svg>
+                    <span>Admin Dashboard</span>
+                </a>
+                @endif
+                
+                <a href="{{ route('routers.index') }}" class="flex items-center gap-3 p-3 {{ request()->routeIs('routers.*') && !request()->routeIs('routers.profiles') && !request()->routeIs('routers.manage') ? 'bg-white/20 text-white' : 'text-white/70 hover:text-white hover:bg-white/10' }} rounded-xl transition-all">
                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path>
                     </svg>
@@ -59,7 +75,7 @@
                         $currentRouter = request()->route('router');
                     @endphp
                     @if($currentRouter && ($currentRouter->user_id == auth()->id() || !$currentRouter->user_id))
-                        <a href="{{ route('routers.manage', $currentRouter) }}" class="flex items-center gap-3 p-3 bg-indigo-600 text-white rounded-xl transition-all">
+                        <a href="{{ route('routers.manage', $currentRouter) }}" class="flex items-center gap-3 p-3 bg-white/20 text-white rounded-xl transition-all">
                             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
                             </svg>
@@ -73,7 +89,7 @@
                         $currentRouter = request()->route('router');
                     @endphp
                     @if($currentRouter && ($currentRouter->user_id == auth()->id() || !$currentRouter->user_id))
-                        <a href="{{ route('vouchers.index') }}?router={{ $currentRouter->id }}" class="flex items-center gap-3 p-3 {{ request()->routeIs('vouchers.*') ? 'bg-indigo-600 text-white' : 'text-gray-300 hover:text-white hover:bg-white/10' }} rounded-xl transition-all">
+                        <a href="{{ route('vouchers.index') }}?router={{ $currentRouter->id }}" class="flex items-center gap-3 p-3 {{ request()->routeIs('vouchers.*') ? 'bg-white/20 text-white' : 'text-white/70 hover:text-white hover:bg-white/10' }} rounded-xl transition-all">
                             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 5v2m0 4v2m0 4v2M5 5a2 2 0 00-2 2v3a2 2 0 110 4v3a2 2 0 002 2h14a2 2 0 002-2v-3a2 2 0 110-4V7a2 2 0 00-2-2H5z"></path>
                             </svg>
@@ -88,7 +104,7 @@
     <!-- Main Content -->
     <main class="lg:ml-64 min-h-screen">
         <!-- Top Bar -->
-        <header class="bg-white shadow-sm px-4 lg:px-6 py-4">
+        <header class="glass-effect shadow-lg px-4 lg:px-6 py-4">
             <div class="flex items-center justify-between">
                 <div class="flex items-center gap-4">
                     <button id="mobile-menu-btn" class="lg:hidden text-gray-600 hover:text-gray-900">
@@ -97,7 +113,7 @@
                         </svg>
                     </button>
                     <div>
-                        <h1 class="text-xl lg:text-2xl font-bold text-gray-900">@yield('page-title')</h1>
+                        <h1 class="text-xl lg:text-2xl font-bold gradient-text">@yield('page-title')</h1>
                         <p class="text-sm text-gray-600 hidden sm:block">@yield('page-subtitle')</p>
                     </div>
                 </div>

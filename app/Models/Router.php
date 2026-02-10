@@ -7,7 +7,7 @@ use Illuminate\Database\Eloquent\Model;
 
 class Router extends Model
 {
-    protected $fillable = ['user_id', 'name', 'vpn_ip', 'local_ip', 'api_user', 'api_password', 'vpn_public_key', 'vpn_private_key'];
+    protected $fillable = ['user_id', 'name', 'vpn_ip', 'local_ip', 'api_user', 'api_password', 'vpn_public_key', 'vpn_private_key', 'status'];
 
     public function user()
     {

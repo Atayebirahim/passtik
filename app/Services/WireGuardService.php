@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use Illuminate\Support\Facades\Process;
+use Illuminate\Support\Facades\DB;
 use Exception;
 
 class WireGuardService
@@ -10,6 +11,7 @@ class WireGuardService
     private $vpsPrivateKey;
     private $vpsPublicKey;
     private $vpsIp = '10.0.0.1';
+    private $maxPeers = 244; // 10.0.0.11 to 10.0.0.254
     
     public function __construct()
     {
@@ -57,13 +59,40 @@ class WireGuardService
         return $result->successful();
     }
     
-    public function generatePeerConfig($routerId)
+    private function getNextAvailableIp()
+    {
+        // Get all used IPs from database
+        $usedIps = DB::table('routers')
+            ->whereNotNull('vpn_ip')
+            ->pluck('vpn_ip')
+            ->map(function($ip) {
+                return (int) explode('.', $ip)[3];
+            })
+            ->toArray();
+        
+        // Find first available IP starting from 11
+        for ($i = 11; $i <= 254; $i++) {
+            if (!in_array($i, $usedIps)) {
+                return "10.0.0.{$i}";
+            }
+        }
+        
+        throw new Exception('No available IP addresses in VPN range (limit: 244 routers)');
+    }
+    
+    public function generatePeerConfig()
     {
         if (!$this->isWireGuardInstalled()) {
             throw new Exception('WireGuard is not installed');
         }
         
-        $peerIp = "10.0.0." . (10 + $routerId);
+        // Check peer limit
+        $currentPeers = DB::table('routers')->whereNotNull('vpn_ip')->count();
+        if ($currentPeers >= $this->maxPeers) {
+            throw new Exception("VPN peer limit reached ({$this->maxPeers} routers maximum)");
+        }
+        
+        $peerIp = $this->getNextAvailableIp();
         
         $result = Process::run('wg genkey');
         if (!$result->successful()) {
@@ -88,16 +117,26 @@ class WireGuardService
     
     public function addPeerToVps($peerPublicKey, $peerIp)
     {
-        $command = "wg set wg0 peer {$peerPublicKey} allowed-ips {$peerIp}/32 persistent-keepalive 25";
-        $result = Process::run("sudo $command");
-        
-        if (!$result->successful()) {
-            throw new Exception('Failed to add peer to WireGuard: ' . $result->errorOutput());
+        if (!config('wireguard.enabled', true)) {
+            \Log::info('WireGuard disabled, skipping peer addition');
+            return;
         }
         
-        $result = Process::run('sudo wg-quick save wg0');
+        $command = "wg set wg0 peer {$peerPublicKey} allowed-ips {$peerIp}/32 persistent-keepalive 25";
+        $result = Process::run($command);
+        
         if (!$result->successful()) {
-            throw new Exception('Failed to save WireGuard config: ' . $result->errorOutput());
+            \Log::error('Failed to add WireGuard peer', [
+                'command' => $command,
+                'error' => $result->errorOutput()
+            ]);
+            throw new Exception('Failed to add peer to WireGuard. Check server logs and sudo permissions.');
+        }
+        
+        $result = Process::run('wg-quick save wg0');
+        if (!$result->successful()) {
+            \Log::error('Failed to save WireGuard config', ['error' => $result->errorOutput()]);
+            throw new Exception('Failed to save WireGuard config');
         }
     }
     
@@ -107,20 +146,74 @@ class WireGuardService
             return; // Old router without VPN
         }
         
-        $result = Process::run("sudo wg set wg0 peer {$peerPublicKey} remove");
-        if ($result->successful()) {
-            Process::run('sudo wg-quick save wg0');
+        if (!config('wireguard.enabled', true)) {
+            \Log::info('WireGuard disabled, skipping peer removal');
+            return;
         }
+        
+        $result = Process::run("wg set wg0 peer {$peerPublicKey} remove");
+        if (!$result->successful()) {
+            \Log::error('Failed to remove WireGuard peer', [
+                'public_key' => $peerPublicKey,
+                'error' => $result->errorOutput()
+            ]);
+            throw new Exception('Failed to remove peer from VPN');
+        }
+        
+        $result = Process::run('wg-quick save wg0');
+        if (!$result->successful()) {
+            \Log::warning('Failed to save WireGuard config after peer removal');
+        }
+    }
+    
+    public function checkPeerStatus($peerPublicKey)
+    {
+        if (!$peerPublicKey) {
+            return ['connected' => false, 'message' => 'No VPN configured'];
+        }
+        
+        $result = Process::run("wg show wg0 peers");
+        if (!$result->successful()) {
+            return ['connected' => false, 'message' => 'Cannot check VPN status'];
+        }
+        
+        $peers = explode("\n", trim($result->output()));
+        $connected = in_array($peerPublicKey, $peers);
+        
+        if ($connected) {
+            // Get peer details
+            $result = Process::run("wg show wg0 dump");
+            if ($result->successful()) {
+                $lines = explode("\n", trim($result->output()));
+                foreach ($lines as $line) {
+                    if (strpos($line, $peerPublicKey) !== false) {
+                        $parts = explode("\t", $line);
+                        $lastHandshake = isset($parts[4]) ? (int)$parts[4] : 0;
+                        $isActive = $lastHandshake > 0 && (time() - $lastHandshake) < 180; // 3 minutes
+                        
+                        return [
+                            'connected' => true,
+                            'active' => $isActive,
+                            'last_handshake' => $lastHandshake,
+                            'message' => $isActive ? 'VPN Active' : 'VPN Configured (Not Active)'
+                        ];
+                    }
+                }
+            }
+        }
+        
+        return ['connected' => false, 'message' => 'VPN Not Connected'];
     }
     
     public function generateMikrotikScript($config, $vpsPublicIp, $apiPassword)
     {
         // Escape special characters in password
         $escapedPassword = addslashes($apiPassword);
+        $timestamp = date('Y-m-d H:i:s');
         
         return <<<SCRIPT
 # Passtik WireGuard Auto-Setup Script
-# Generated: " . date('Y-m-d H:i:s') . "
+# Generated: {$timestamp}
 
 /interface wireguard
 add listen-port=13231 mtu=1420 name=wireguard-passtik private-key="{$config['peer_private_key']}"
@@ -132,7 +225,7 @@ add allowed-address={$config['vps_ip']}/32 endpoint-address={$vpsPublicIp} endpo
 add address={$config['peer_ip']}/24 interface=wireguard-passtik
 
 /ip service
-set api address=10.0.0.0/24 port=8728 disabled=no
+set api address=10.0.0.0/24,192.168.0.0/16 port=8728 disabled=no
 
 /user
 add name=passtik-api password="{$escapedPassword}" group=full comment="Passtik API"
@@ -144,6 +237,7 @@ add dst-host=passtik.net comment="Passtik"
 :log info "Passtik VPN configured successfully"
 :put "VPN IP: {$config['peer_ip']}"
 :put "VPS IP: {$config['vps_ip']}"
+:put "VPS Endpoint: {$vpsPublicIp}:51820"
 SCRIPT;
     }
     
@@ -151,4 +245,4 @@ SCRIPT;
     {
         return $this->vpsPublicKey;
     }
-}}
+}
